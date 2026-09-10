@@ -5,6 +5,7 @@ import '@xyflow/react/dist/style.css';
 import './styles.css';
 import './timeline.css';
 import './patterns.css';
+import './reactflow-theme.css';
 import { configureProvider, getPatterns, getProviders, runEvaluation, runPlayground, type PatternDescription, type ProviderDescriptor } from './api/client';
 import { mapExecution } from './flow/execution/mapExecution';
 import { presets } from './flow/templates';
