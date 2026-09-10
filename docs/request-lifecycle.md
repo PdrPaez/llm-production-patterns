@@ -1,0 +1,3 @@
+# Request lifecycle
+
+Each request starts a trace, consumes a client bucket, and is checked for suspicious instructions and an allowlisted operation. Routing then selects a provider tier; budgeting retains protected prompt content and fits context; the route-aware exact cache is checked. A miss executes the provider with bounded retries and recognized-error fallback. Structured responses are parsed with Pydantic and receive at most one correction request. Only valid results are cached. Cache hits and security blocks return with zero provider attempts, while rate limiting returns HTTP 429 with `Retry-After`.

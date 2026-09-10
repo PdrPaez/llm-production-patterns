@@ -1,0 +1,5 @@
+[
+  {"name":"simple-fast","prompt":"Explain bounded retries.","complexity":"simple","expected_provider":"mock_fast"},
+  {"name":"complex-quality","prompt":"Design a careful failure policy for an important system.","complexity":"high","expected_provider":"mock_quality"},
+  {"name":"structured-billing","prompt":"I was charged twice for my subscription.","structured_output":true,"expected_provider":"mock_quality","expected_category":"billing"}
+]
