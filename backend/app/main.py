@@ -1,0 +1,57 @@
+import json
+
+from fastapi import FastAPI, HTTPException, Response
+
+from .database import get_session, init_db, trace_by_id
+from .gateway import Gateway
+from .schemas import PlaygroundRequest
+
+app = FastAPI(title="LLM Production Patterns", version="0.1.0")
+gateway = Gateway()
+
+
+@app.on_event("startup")
+def startup(): init_db()
+
+
+@app.get("/health")
+def health(): return {"status": "ok", "sqlite": "configured", "provider_mode": "mock"}
+
+
+@app.get("/api/patterns")
+def patterns():
+    items = [("model-routing", "Model Routing", "Choose an appropriate tier", "Deterministic signals select fast or quality", "patterns/routing.py", "Quality can cost more", "Use capability and cost signals in production"), ("provider-fallback", "Provider Fallback", "Recover from provider failure", "Ordered recognized-error fallback", "gateway.py", "Fallback can change quality/cost", "Keep transitions observable"), ("retries", "Retries with Exponential Backoff", "Handle transient errors", "Bounded 3-attempt retry controller", "patterns/retries.py", "Retries add latency", "Never retry programming errors"), ("structured-output", "Structured Output Validation", "Make model output typed", "Pydantic validation plus one correction", "patterns/structured_output.py", "Correction costs a call", "Reject exhausted upstream output"), ("token-budgeting", "Token Budgeting", "Fit context safely", "Protected input and priority-aware context budget", "patterns/token_budget.py", "Approximation differs from provider count", "Use provider tokenizer when available"), ("response-caching", "Response Caching", "Avoid repeated work", "Exact SQLite cache with TTL", "patterns/caching.py", "Not distributed or semantic", "Include model-affecting settings in key"), ("rate-limiting", "Rate Limiting", "Bound request volume", "In-memory token bucket per client", "patterns/rate_limiting.py", "Single process", "Use distributed limiter at scale"), ("prompt-injection", "Prompt Injection Mitigation", "Reduce unsafe instructions", "Heuristic detection and operation allowlist", "patterns/prompt_security.py", "Heuristics are incomplete", "Layer with stronger controls"), ("tracing", "Tracing", "Explain execution", "Persisted spans power diagnostics", "patterns/tracing.py", "Local, not distributed", "Adopt OpenTelemetry in production"), ("deterministic-evaluation", "Deterministic Evaluation", "Catch regressions offline", "Fixture-driven assertions without LLM judge", "evaluation/run.py", "Does not measure model quality", "Add curated datasets")]
+    return [{"id": i, "title": t, "problem": p, "pattern": pat, "implementation": impl, "trade_offs": tr, "production_considerations": pc} for i,t,p,pat,impl,tr,pc in items]
+
+
+@app.get("/api/providers")
+def providers(): return gateway.descriptors()
+
+
+@app.post("/api/playground/run")
+async def run_playground(request: PlaygroundRequest, response: Response):
+    try: result = await gateway.run(request)
+    except ValueError as exc: raise HTTPException(502, str(exc)) from exc
+    if not result.rate_limit.get("allowed", True): response.status_code = 429; response.headers["Retry-After"] = str(result.rate_limit.get("retry_after", 1))
+    return result
+
+
+@app.get("/api/traces/{trace_id}")
+def trace(trace_id: str):
+    session = get_session(); record = trace_by_id(session, trace_id); session.close()
+    if not record: raise HTTPException(404, "trace not found")
+    return json.loads(record.response_json)
+
+
+@app.post("/api/evaluation/run")
+async def evaluation():
+    from .evaluation.run import run_evaluation
+    return await run_evaluation(gateway)
+
+
+@app.get("/api/cache/stats")
+def cache_stats(): return gateway.stats()
+
+
+@app.delete("/api/cache")
+def cache_clear(): return gateway.clear()
