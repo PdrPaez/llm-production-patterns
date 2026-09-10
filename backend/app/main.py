@@ -8,6 +8,7 @@ from .database import get_session, init_db, trace_by_id
 from .gateway import Gateway
 from .schemas import PlaygroundRequest
 
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
