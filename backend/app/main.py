@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .database import get_session, init_db, trace_by_id
 from .gateway import Gateway
+from .patterns.token_budget import TokenBudgetExceededError
 from .schemas import PlaygroundRequest
 
 
@@ -43,7 +44,10 @@ def providers(): return gateway.descriptors()
 async def run_playground(request: PlaygroundRequest, response: Response, x_client_id: str | None = Header(default=None)):
     if x_client_id:
         request.client_id = x_client_id
+    if len(request.client_id) > 64 or not request.client_id.strip():
+        raise HTTPException(400, "X-Client-ID must contain 1 to 64 characters")
     try: result = await gateway.run(request)
+    except TokenBudgetExceededError as exc: raise HTTPException(413, str(exc)) from exc
     except ValueError as exc: raise HTTPException(502, str(exc)) from exc
     if not result.rate_limit.get("allowed", True): response.status_code = 429; response.headers["Retry-After"] = str(result.rate_limit.get("retry_after", 1))
     return result
