@@ -104,6 +104,8 @@ SQLite cache and local tracing are not distributed. The limiter is single-proces
 
 See [ROADMAP.md](ROADMAP.md) for the LPP card sequence. Use `feature/LPP-XXX-description -> dev -> main` with commits in the form `[AREA][LPP-XXX] concise English description`. No automated-authorship metadata is added.
 
+The concise source-level reference is [docs/patterns.md](docs/patterns.md).
+
 ## License
 
 MIT.
