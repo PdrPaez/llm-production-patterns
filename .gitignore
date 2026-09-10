@@ -12,3 +12,7 @@ dist/
 .DS_Store
 .idea/
 .vscode/
+.capture-profile*/
+.screenshot-profile*/
+docs/assets/llm-production-patterns-overview.png
+docs/assets/test.png
