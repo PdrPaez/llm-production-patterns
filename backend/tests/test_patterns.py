@@ -7,7 +7,7 @@ from app.main import app
 from app.patterns.fallback import ordered_plan
 from app.patterns.prompt_security import inspect_prompt
 from app.patterns.routing import ModelRouter
-from app.patterns.token_budget import apply_budget
+from app.patterns.token_budget import TokenBudgetExceededError, apply_budget
 from app.schemas import PlaygroundRequest
 
 
@@ -26,6 +26,14 @@ def test_fallback_plan_is_explicit_and_deduplicated():
 def test_budget_preserves_prompt_and_removes_context():
     result = apply_budget("system", "latest", ["a" * 2000], 20, 5)
     assert result.prompt == "latest" and result.removed_context
+
+
+def test_budget_never_truncates_protected_input():
+    try:
+        apply_budget("system instructions", "latest user message", [], 5, 2)
+    except TokenBudgetExceededError:
+        return
+    raise AssertionError("protected input must fail when it cannot fit")
 
 
 def test_security_blocks_override():

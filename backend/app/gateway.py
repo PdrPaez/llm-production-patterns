@@ -51,11 +51,11 @@ class Gateway:
         security = inspect_prompt(req.prompt, req.requested_operation) if req.enable_security_check else type("S", (), {"allowed": True, "risk": "disabled", "findings": []})()
         trace.span("security", "succeeded" if security.allowed else "blocked", {"risk": security.risk, "findings": security.findings})
         if not security.allowed:
-            response = PlaygroundResponse(trace_id=trace.trace_id, security={"allowed": False, "risk": security.risk, "findings": security.findings}, routing_reason=reason, selected_provider=selected, execution={"status": "blocked", "route": ["rate_limit", "security"], "skipped_stages": ["routing", "provider", "validation"]})
+            response = PlaygroundResponse(trace_id=trace.trace_id, security=security.as_dict() if hasattr(security, "as_dict") else {"allowed": False, "risk_level": security.risk, "reasons": security.findings, "flagged_patterns": security.findings}, routing_reason=reason, selected_provider=selected, execution={"status": "blocked", "route": ["rate_limit", "security"], "skipped_stages": ["routing", "provider", "validation"]})
             trace.persist(session, response.model_dump()); return response
         trace.span("routing", "succeeded", {"selected_provider": selected, "reason": reason, "signals": route.signals})
         budget = apply_budget("", req.prompt, req.context_blocks, req.max_context_tokens, req.reserved_output_tokens)
-        budget_json = {"estimated_tokens": budget.estimated_tokens, "max_context_tokens": req.max_context_tokens, "reserved_output_tokens": budget.reserved_output_tokens, "retained_context": budget.retained_context, "removed_context": budget.removed_context}
+        budget_json = budget.as_dict(req.max_context_tokens)
         trace.span("token_budget", "succeeded", budget_json)
         provider_request = ProviderRequest(user_content=req.prompt, retained_context_blocks=budget.retained_context, structured_output=req.structured_output, max_output_tokens=req.reserved_output_tokens, temperature=req.temperature, failure_mode=req.failure_mode, simulate_invalid_output=req.simulate_invalid_output, request_id=trace.trace_id)
         key = cache_key({"prompt": req.prompt, "structured": req.structured_output, "failure": req.failure_mode, "temperature": req.temperature}, selected)
@@ -75,6 +75,8 @@ class Gateway:
             try:
                 provider_response, performed, backoffs = await with_retries(lambda: self.providers[provider_id].generate(provider_request))
                 attempts += performed; retries += performed - 1
+                if performed > 1:
+                    trace.span("retry", "succeeded", {"provider": provider_id, "attempts": performed, "backoffs_ms": backoffs})
                 trace.span("provider_call", "succeeded", {"provider": provider_id, "attempts": performed, "backoffs_ms": backoffs})
                 break
             except (TransientProviderError, ProviderUnavailableError) as exc:
@@ -91,9 +93,12 @@ class Gateway:
                 try: structured = parse_ticket(corrected.text); provider_response = corrected; trace.span("correction", "succeeded"); trace.span("validation", "succeeded")
                 except ValidationError as final_error: trace.span("correction", "failed", {"errors": validation_errors(final_error)}); raise ValueError("structured validation exhausted") from final_error
         trace.span("completion", "succeeded", {"provider": provider_response.provider})
-        result = PlaygroundResponse(response=None if structured else provider_response.text, structured_response=structured, selected_provider=selected, provider=provider_response.provider, routing_reason=reason, attempted_providers=attempted, attempts=attempts, retry_count=retries, fallback_used=fallback_used, security={"allowed": True, "risk": security.risk, "findings": security.findings}, rate_limit=rate, token_budget=budget_json, trace_id=trace.trace_id, latency_ms=(time.perf_counter()-started)*1000, execution={"status": "succeeded", "route": [s.name for s in trace.spans], "skipped_stages": ["correction"] if not req.structured_output else []}, trace=trace.spans)
+        if req.enable_cache:
+            trace.span("cache_store", "succeeded", {"key": key})
+        result = PlaygroundResponse(response=None if structured else provider_response.text, structured_response=structured, selected_provider=selected, provider=provider_response.provider, routing_reason=reason, attempted_providers=attempted, attempts=attempts, retry_count=retries, fallback_used=fallback_used, security=security.as_dict() if hasattr(security, "as_dict") else {"allowed": True, "risk_level": security.risk, "reasons": security.findings, "flagged_patterns": security.findings}, rate_limit=rate, token_budget=budget_json, trace_id=trace.trace_id, latency_ms=(time.perf_counter()-started)*1000, execution={"status": "succeeded", "route": [s.name for s in trace.spans], "skipped_stages": ["correction"] if not req.structured_output else []}, trace=trace.spans)
         payload = result.model_dump()
-        if req.enable_cache: put_cached(session, key, payload)
+        if req.enable_cache:
+            put_cached(session, key, payload)
         trace.persist(session, payload); return result
 
     def stats(self):

@@ -54,7 +54,7 @@ class PlaygroundRequest(BaseModel):
     routing_mode: Literal["automatic", "fixed"] = "automatic"
     provider: str | None = None
     fallback_provider: str | None = None
-    client_id: str = "playground"
+    client_id: str = "local"
 
 
 class TraceSpan(BaseModel):
