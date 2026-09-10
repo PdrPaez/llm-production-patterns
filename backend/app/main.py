@@ -1,4 +1,5 @@
 import json
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,7 +8,13 @@ from .database import get_session, init_db, trace_by_id
 from .gateway import Gateway
 from .schemas import PlaygroundRequest
 
-app = FastAPI(title="LLM Production Patterns", version="0.1.0")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title="LLM Production Patterns", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -15,10 +22,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 gateway = Gateway()
-
-
-@app.on_event("startup")
-def startup(): init_db()
 
 
 @app.get("/health")
