@@ -17,7 +17,8 @@ export function getHealth(): Promise<{ status: string }> { return getJson('/heal
 export async function runPlayground(payload: object): Promise<ExecutionResult> {
   const response = await fetch(`${API}/api/playground/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   const body = await response.json();
-  if (!response.ok && response.status !== 429) throw new Error(body.detail ?? `Playground failed with ${response.status}`);
+  if (!response.ok) throw new Error(body.detail ?? `Playground failed with ${response.status}`);
+  if (body.rate_limit && body.rate_limit.allowed === false) throw new Error(`Rate limit exceeded. Retry in ${body.rate_limit.retry_after ?? 1}s.`);
   return body as ExecutionResult;
 }
 export function runEvaluation(): Promise<Record<string, unknown>> {
