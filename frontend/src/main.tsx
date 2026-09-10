@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { Background, Controls, Handle, MiniMap, Position, ReactFlow, type NodeProps } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import './styles.css';
+import './timeline.css';
 import { mapExecution } from './flow/execution/mapExecution';
 import { presets } from './flow/templates';
 import type { ExecutionResult, FlowNodeData } from './flow/types';
