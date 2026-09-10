@@ -1,10 +1,12 @@
 from functools import lru_cache
+from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=Path(__file__).resolve().parents[2] / ".env", extra="ignore")
     database_url: str = "sqlite:///./data/app.db"
     routing_quality_threshold_tokens: int = 120
     provider_max_attempts: int = 3
@@ -15,9 +17,12 @@ class Settings(BaseSettings):
     cache_ttl_seconds: int = 300
     rate_limit_capacity: int = 5
     rate_limit_refill_per_second: float = 1.0
+    llm_provider_mode: Literal["mock", "openai_compatible"] = "mock"
     openai_api_key: str = ""
-    openai_base_url: str = ""
-    openai_model: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_model: str = "gpt-4o-mini"
+    openai_fast_model: str = ""
+    openai_quality_model: str = ""
 
 
 @lru_cache
