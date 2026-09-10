@@ -1,7 +1,7 @@
 import json
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, Header, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import get_session, init_db, trace_by_id
@@ -40,7 +40,9 @@ def providers(): return gateway.descriptors()
 
 
 @app.post("/api/playground/run")
-async def run_playground(request: PlaygroundRequest, response: Response):
+async def run_playground(request: PlaygroundRequest, response: Response, x_client_id: str | None = Header(default=None)):
+    if x_client_id:
+        request.client_id = x_client_id
     try: result = await gateway.run(request)
     except ValueError as exc: raise HTTPException(502, str(exc)) from exc
     if not result.rate_limit.get("allowed", True): response.status_code = 429; response.headers["Retry-After"] = str(result.rate_limit.get("retry_after", 1))
