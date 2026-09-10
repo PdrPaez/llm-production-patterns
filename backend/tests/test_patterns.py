@@ -1,6 +1,9 @@
 import asyncio
 
+from fastapi.testclient import TestClient
+
 from app.gateway import Gateway
+from app.main import app
 from app.patterns.prompt_security import inspect_prompt
 from app.patterns.routing import ModelRouter
 from app.patterns.token_budget import apply_budget
@@ -54,3 +57,22 @@ def test_structured_correction_is_bounded():
     result = asyncio.run(run())
     assert result.structured_response is not None
     assert any(span.name == "correction" and span.status == "succeeded" for span in result.trace)
+
+
+def test_http_surface_and_trace_persistence():
+    client = TestClient(app)
+    assert client.get("/api/patterns").status_code == 200
+    assert len(client.get("/api/patterns").json()) == 10
+    client.delete("/api/cache")
+    response = client.post("/api/playground/run", json={"prompt": "trace this", "enable_cache": False})
+    assert response.status_code == 200
+    payload = response.json()
+    trace = client.get(f"/api/traces/{payload['trace_id']}")
+    assert trace.status_code == 200 and trace.json()["trace_id"] == payload["trace_id"]
+
+
+def test_rate_limit_returns_http_429():
+    client = TestClient(app)
+    client.delete("/api/cache")
+    statuses = [client.post("/api/playground/run", json={"prompt": f"quota-{i}", "client_id": "quota-test", "enable_cache": False}).status_code for i in range(7)]
+    assert 429 in statuses
