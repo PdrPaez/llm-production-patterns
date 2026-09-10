@@ -30,17 +30,23 @@ class Gateway:
         self.router = ModelRouter()
         self.limiter = TokenBucketLimiter(self.settings.rate_limit_capacity, self.settings.rate_limit_refill_per_second)
         self.providers = {p.name: p for p in (MockFastProvider(), MockQualityProvider(), MockFailingProvider())}
-        if self.settings.openai_api_key and self.settings.openai_base_url:
-            external = OpenAICompatibleProvider()
-            self.providers[external.name] = external
+        if self.settings.llm_provider_mode == "openai_compatible" and self.settings.openai_api_key:
+            self.providers["openai_fast"] = OpenAICompatibleProvider(provider_name="openai_fast", model=self.settings.openai_fast_model or self.settings.openai_model)
+            self.providers["openai_quality"] = OpenAICompatibleProvider(provider_name="openai_quality", model=self.settings.openai_quality_model or self.settings.openai_model)
 
     def descriptors(self):
-        return [{"id": "mock_fast", "label": "Mock Fast", "tier": "fast", "type": "mock", "available": True}, {"id": "mock_quality", "label": "Mock Quality", "tier": "quality", "type": "mock", "available": True}, {"id": "mock_failing", "label": "Mock Failing", "tier": "failure", "type": "mock", "available": True}, {"id": "openai_compatible", "label": "OpenAI-Compatible", "tier": "external", "type": "external", "available": bool(self.settings.openai_api_key and self.settings.openai_base_url)}]
+        external = bool(self.settings.llm_provider_mode == "openai_compatible" and self.settings.openai_api_key)
+        return [{"id": "mock_fast", "label": "Mock Fast", "tier": "fast", "type": "mock", "available": True}, {"id": "mock_quality", "label": "Mock Quality", "tier": "quality", "type": "mock", "available": True}, {"id": "mock_failing", "label": "Mock Failing", "tier": "failure", "type": "mock", "available": True}, {"id": "openai_fast", "label": "OpenAI-Compatible Fast", "tier": "fast", "type": "external", "available": external}, {"id": "openai_quality", "label": "OpenAI-Compatible Quality", "tier": "quality", "type": "external", "available": external}]
 
     async def run(self, req: PlaygroundRequest) -> PlaygroundResponse:
         started = time.perf_counter(); trace = Trace(); session = get_session()
         route = self.router.choose(prompt=req.prompt, complexity=req.complexity, structured_output=req.structured_output)
-        selected = req.provider if req.routing_mode == "fixed" and req.provider else route.provider
+        if req.routing_mode == "fixed" and req.provider:
+            selected = req.provider
+        elif self.settings.llm_provider_mode == "openai_compatible":
+            selected = "openai_quality" if route.provider == "mock_quality" else "openai_fast"
+        else:
+            selected = route.provider
         reason = "routing_overridden" if req.routing_mode == "fixed" else route.reason
         trace.span("request", "succeeded")
         rate = self.limiter.consume(req.client_id) if req.enable_rate_limit else {"allowed": True, "remaining": None, "retry_after": 0}
@@ -65,8 +71,8 @@ class Gateway:
             if cached:
                 cached["trace_id"] = trace.trace_id; cached["cache_hit"] = True; cached["attempts"] = 0; cached["trace"] = [s.model_dump() for s in trace.spans]; trace.persist(session, cached); return PlaygroundResponse.model_validate(cached)
         else: trace.span("cache_lookup", "skipped")
-        fallback = req.fallback_provider or ("mock_quality" if selected == "mock_fast" else "mock_fast")
-        primary = "mock_failing" if req.failure_mode == "exhaust_primary" else selected
+        fallback = req.fallback_provider or ({"mock_fast": "mock_quality", "mock_quality": "mock_fast", "openai_fast": "openai_quality", "openai_quality": "openai_fast"}.get(selected, "mock_fast"))
+        primary = "mock_failing" if req.failure_mode == "exhaust_primary" and selected.startswith("mock_") else selected
         plan = ordered_plan(primary, fallback, self.providers)
         attempted, attempts, retries, fallback_used, provider_response, errors = [], 0, 0, False, None, []
         for index, provider_id in enumerate(plan):
