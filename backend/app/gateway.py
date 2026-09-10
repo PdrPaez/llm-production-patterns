@@ -5,6 +5,7 @@ from pydantic import ValidationError
 from .config import get_settings
 from .database import get_session, init_db
 from .patterns.caching import cache_key, cache_stats, clear_cache, get_cached, put_cached
+from .patterns.fallback import ordered_plan
 from .patterns.prompt_security import inspect_prompt
 from .patterns.rate_limiting import TokenBucketLimiter
 from .patterns.retries import with_retries
@@ -18,6 +19,7 @@ from .providers.base import (
     TransientProviderError,
 )
 from .providers.mock import MockFailingProvider, MockFastProvider, MockQualityProvider
+from .providers.openai_compatible import OpenAICompatibleProvider
 from .schemas import PlaygroundRequest, PlaygroundResponse, ProviderRequest
 
 
@@ -28,6 +30,9 @@ class Gateway:
         self.router = ModelRouter()
         self.limiter = TokenBucketLimiter(self.settings.rate_limit_capacity, self.settings.rate_limit_refill_per_second)
         self.providers = {p.name: p for p in (MockFastProvider(), MockQualityProvider(), MockFailingProvider())}
+        if self.settings.openai_api_key and self.settings.openai_base_url:
+            external = OpenAICompatibleProvider()
+            self.providers[external.name] = external
 
     def descriptors(self):
         return [{"id": "mock_fast", "label": "Mock Fast", "tier": "fast", "type": "mock", "available": True}, {"id": "mock_quality", "label": "Mock Quality", "tier": "quality", "type": "mock", "available": True}, {"id": "mock_failing", "label": "Mock Failing", "tier": "failure", "type": "mock", "available": True}, {"id": "openai_compatible", "label": "OpenAI-Compatible", "tier": "external", "type": "external", "available": bool(self.settings.openai_api_key and self.settings.openai_base_url)}]
@@ -62,7 +67,7 @@ class Gateway:
         else: trace.span("cache_lookup", "skipped")
         fallback = req.fallback_provider or ("mock_quality" if selected == "mock_fast" else "mock_fast")
         primary = "mock_failing" if req.failure_mode == "exhaust_primary" else selected
-        plan = [primary, fallback]
+        plan = ordered_plan(primary, fallback, self.providers)
         attempted, attempts, retries, fallback_used, provider_response, errors = [], 0, 0, False, None, []
         for index, provider_id in enumerate(plan):
             if provider_id not in self.providers: raise ProviderConfigurationError(f"unknown provider: {provider_id}")

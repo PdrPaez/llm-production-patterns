@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.gateway import Gateway
 from app.main import app
+from app.patterns.fallback import ordered_plan
 from app.patterns.prompt_security import inspect_prompt
 from app.patterns.routing import ModelRouter
 from app.patterns.token_budget import apply_budget
@@ -15,6 +16,11 @@ def test_routing():
     assert router.choose(prompt="short", complexity="simple", structured_output=False).provider == "mock_fast"
     assert router.choose(prompt="short", complexity="high", structured_output=False).provider == "mock_quality"
     assert router.choose(prompt="short", complexity="simple", structured_output=True).reason == "structured_output_required"
+
+
+def test_fallback_plan_is_explicit_and_deduplicated():
+    assert ordered_plan("mock_fast", "mock_quality", ["mock_fast", "mock_quality"]) == ["mock_fast", "mock_quality"]
+    assert ordered_plan("mock_fast", "mock_fast", ["mock_fast"]) == ["mock_fast"]
 
 
 def test_budget_preserves_prompt_and_removes_context():
