@@ -27,7 +27,7 @@ gateway = Gateway()
 
 
 @app.get("/health")
-def health(): return {"status": "ok", "sqlite": "configured", "provider_mode": "mock"}
+def health(): return {"status": "ok", "sqlite": "configured", "provider_mode": gateway.settings.llm_provider_mode}
 
 
 @app.get("/api/patterns")
