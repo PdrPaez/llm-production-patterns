@@ -2,6 +2,7 @@ import type { ExecutionResult } from '../flow/types';
 
 export type PatternDescription = { id: string; title: string; problem: string; pattern: string; implementation: string; trade_offs: string; production_considerations: string };
 export type ProviderDescriptor = { id: string; label: string; tier: string; type: string; available: boolean };
+export type ProviderConfiguration = { base_url: string; api_key: string; model: string; fast_model?: string; quality_model?: string };
 
 const API = 'http://127.0.0.1:8000';
 
@@ -13,6 +14,12 @@ async function getJson<T>(path: string): Promise<T> {
 
 export function getPatterns(): Promise<PatternDescription[]> { return getJson('/api/patterns'); }
 export function getProviders(): Promise<ProviderDescriptor[]> { return getJson('/api/providers'); }
+export async function configureProvider(payload: ProviderConfiguration): Promise<ProviderDescriptor[]> {
+  const response = await fetch(`${API}/api/providers/configure`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.detail ?? `Provider configuration failed with ${response.status}`);
+  return body as ProviderDescriptor[];
+}
 export function getHealth(): Promise<{ status: string }> { return getJson('/health'); }
 export async function runPlayground(payload: object): Promise<ExecutionResult> {
   const response = await fetch(`${API}/api/playground/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });

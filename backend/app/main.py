@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .database import get_session, init_db, trace_by_id
 from .gateway import Gateway
 from .patterns.token_budget import TokenBudgetExceededError
-from .schemas import PlaygroundRequest
+from .schemas import PlaygroundRequest, ProviderConfigurationRequest
 
 
 @asynccontextmanager
@@ -27,7 +27,7 @@ gateway = Gateway()
 
 
 @app.get("/health")
-def health(): return {"status": "ok", "sqlite": "configured", "provider_mode": gateway.settings.llm_provider_mode}
+def health(): return {"status": "ok", "sqlite": "configured", "provider_mode": "openai_compatible" if gateway.external_enabled else gateway.settings.llm_provider_mode}
 
 
 @app.get("/api/patterns")
@@ -38,6 +38,11 @@ def patterns():
 
 @app.get("/api/providers")
 def providers(): return gateway.descriptors()
+
+
+@app.post("/api/providers/configure")
+def configure_provider(request: ProviderConfigurationRequest):
+    return gateway.configure_provider(request)
 
 
 @app.post("/api/playground/run")

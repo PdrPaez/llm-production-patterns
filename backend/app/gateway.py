@@ -20,7 +20,7 @@ from .providers.base import (
 )
 from .providers.mock import MockFailingProvider, MockFastProvider, MockQualityProvider
 from .providers.openai_compatible import OpenAICompatibleProvider
-from .schemas import PlaygroundRequest, PlaygroundResponse, ProviderRequest
+from .schemas import PlaygroundRequest, PlaygroundResponse, ProviderConfigurationRequest, ProviderRequest
 
 
 class Gateway:
@@ -30,12 +30,21 @@ class Gateway:
         self.router = ModelRouter()
         self.limiter = TokenBucketLimiter(self.settings.rate_limit_capacity, self.settings.rate_limit_refill_per_second)
         self.providers = {p.name: p for p in (MockFastProvider(), MockQualityProvider(), MockFailingProvider())}
+        self.external_enabled = False
         if self.settings.llm_provider_mode == "openai_compatible" and self.settings.openai_api_key:
-            self.providers["openai_fast"] = OpenAICompatibleProvider(provider_name="openai_fast", model=self.settings.openai_fast_model or self.settings.openai_model)
-            self.providers["openai_quality"] = OpenAICompatibleProvider(provider_name="openai_quality", model=self.settings.openai_quality_model or self.settings.openai_model)
+            self._configure_openai(self.settings.openai_api_key, self.settings.openai_base_url, self.settings.openai_model, self.settings.openai_fast_model, self.settings.openai_quality_model)
+
+    def _configure_openai(self, api_key: str, base_url: str, model: str, fast_model: str | None = None, quality_model: str | None = None):
+        self.providers["openai_fast"] = OpenAICompatibleProvider(provider_name="openai_fast", api_key=api_key, base_url=base_url, model=fast_model or model)
+        self.providers["openai_quality"] = OpenAICompatibleProvider(provider_name="openai_quality", api_key=api_key, base_url=base_url, model=quality_model or model)
+        self.external_enabled = True
+
+    def configure_provider(self, config: ProviderConfigurationRequest):
+        self._configure_openai(config.api_key, config.base_url, config.model, config.fast_model, config.quality_model)
+        return self.descriptors()
 
     def descriptors(self):
-        external = bool(self.settings.llm_provider_mode == "openai_compatible" and self.settings.openai_api_key)
+        external = self.external_enabled
         return [{"id": "mock_fast", "label": "Mock Fast", "tier": "fast", "type": "mock", "available": True}, {"id": "mock_quality", "label": "Mock Quality", "tier": "quality", "type": "mock", "available": True}, {"id": "mock_failing", "label": "Mock Failing", "tier": "failure", "type": "mock", "available": True}, {"id": "openai_fast", "label": "OpenAI-Compatible Fast", "tier": "fast", "type": "external", "available": external}, {"id": "openai_quality", "label": "OpenAI-Compatible Quality", "tier": "quality", "type": "external", "available": external}]
 
     async def run(self, req: PlaygroundRequest) -> PlaygroundResponse:
@@ -43,7 +52,7 @@ class Gateway:
         route = self.router.choose(prompt=req.prompt, complexity=req.complexity, structured_output=req.structured_output)
         if req.routing_mode == "fixed" and req.provider:
             selected = req.provider
-        elif self.settings.llm_provider_mode == "openai_compatible":
+        elif self.external_enabled:
             selected = "openai_quality" if route.provider == "mock_quality" else "openai_fast"
         else:
             selected = route.provider
