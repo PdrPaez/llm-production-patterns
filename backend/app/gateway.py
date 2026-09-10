@@ -20,7 +20,12 @@ from .providers.base import (
 )
 from .providers.mock import MockFailingProvider, MockFastProvider, MockQualityProvider
 from .providers.openai_compatible import OpenAICompatibleProvider
-from .schemas import PlaygroundRequest, PlaygroundResponse, ProviderConfigurationRequest, ProviderRequest
+from .schemas import (
+    PlaygroundRequest,
+    PlaygroundResponse,
+    ProviderConfigurationRequest,
+    ProviderRequest,
+)
 
 
 class Gateway:
