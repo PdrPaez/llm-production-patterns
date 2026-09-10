@@ -81,7 +81,7 @@ $env:LLM_PROVIDER_MODE = "openai_compatible"
 $env:OPENAI_API_KEY = "your-key"
 ```
 
-For a compatible gateway, set `OPENAI_BASE_URL` to its `/v1` endpoint. `OPENAI_MODEL` is the default model; `OPENAI_FAST_MODEL` and `OPENAI_QUALITY_MODEL` can override the two automatically selected tiers. Restart the backend after changing configuration. `GET /api/providers` then reports the configured Fast and Quality routes without returning the key. The UI can select either route explicitly, or automatic routing maps simple requests to Fast and complex/structured requests to Quality. Timeouts, network failures, HTTP 429, and 5xx responses enter the existing bounded retry/fallback path.
+For a compatible gateway, set `OPENAI_BASE_URL` to its `/v1` endpoint. `OPENAI_MODEL` is the default model; `OPENAI_FAST_MODEL` and `OPENAI_QUALITY_MODEL` can override the two automatically selected tiers. Restart the backend after changing configuration. Alternatively, open `Configure real LLM provider` in the UI, fill in the Base URL, API key, and models, then select the discovered Fast or Quality provider. UI configuration is held in backend memory for the current session; the key is cleared from the form after submission and never returned by the API. `GET /api/providers` reports only safe metadata. Automatic routing maps simple requests to Fast and complex/structured requests to Quality. Timeouts, network failures, HTTP 429, and 5xx responses enter the existing bounded retry/fallback path.
 
 ## API and evaluation
 
