@@ -3,7 +3,7 @@ import type { ExecutionResult } from '../flow/types';
 export type PatternDescription = { id: string; title: string; problem: string; pattern: string; implementation: string; trade_offs: string; production_considerations: string };
 export type ProviderDescriptor = { id: string; label: string; tier: string; type: string; available: boolean };
 
-const API = 'http://localhost:8000';
+const API = 'http://127.0.0.1:8000';
 
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(`${API}${path}`);
