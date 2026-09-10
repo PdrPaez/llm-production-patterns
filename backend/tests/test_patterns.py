@@ -82,3 +82,9 @@ def test_rate_limit_returns_http_429():
     client.delete("/api/cache")
     statuses = [client.post("/api/playground/run", json={"prompt": f"quota-{i}", "client_id": "quota-test", "enable_cache": False}).status_code for i in range(7)]
     assert 429 in statuses
+
+
+def test_x_client_id_header_controls_bucket():
+    client = TestClient(app)
+    response = client.post("/api/playground/run", headers={"X-Client-ID": "header-client"}, json={"prompt": "header quota", "enable_cache": False})
+    assert response.status_code == 200 and response.json()["rate_limit"]["allowed"] is True
