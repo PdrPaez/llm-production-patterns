@@ -49,7 +49,9 @@ The gateway orders rate limit → security → routing → budget → cache → 
 
 SQLite cache and local tracing are not distributed; the limiter is single-process; heuristic security detection is incomplete; token estimates are approximate; mock quality is illustrative; fallback can change cost/quality; and concurrent identical misses can duplicate work. This is not an agent framework, RAG system, workflow builder, or generic LLM gateway product.
 
-## Git workflow
+## Roadmap and Git workflow
+
+See [ROADMAP.md](ROADMAP.md) for the LPP card sequence and current verification status.
 
 Use `feature/LPP-XXX-description -> dev -> main` and commits in the form `[AREA][LPP-XXX] concise English description`. The repository intentionally contains no automated-authorship metadata.
 
