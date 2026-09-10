@@ -71,6 +71,18 @@ npm run dev
 
 Open `http://localhost:5173`. The API is available at `http://localhost:8000`.
 
+### Use a real LLM API
+
+The OpenAI-compatible transport is opt-in. From the repository root, copy the example configuration and set the provider mode and credential:
+
+```powershell
+Copy-Item .env.example .env
+$env:LLM_PROVIDER_MODE = "openai_compatible"
+$env:OPENAI_API_KEY = "your-key"
+```
+
+For a compatible gateway, set `OPENAI_BASE_URL` to its `/v1` endpoint. `OPENAI_MODEL` is the default model; `OPENAI_FAST_MODEL` and `OPENAI_QUALITY_MODEL` can override the two automatically selected tiers. Restart the backend after changing configuration. `GET /api/providers` then reports the configured Fast and Quality routes without returning the key. The UI can select either route explicitly, or automatic routing maps simple requests to Fast and complex/structured requests to Quality. Timeouts, network failures, HTTP 429, and 5xx responses enter the existing bounded retry/fallback path.
+
 ## API and evaluation
 
 The API exposes `GET /health`, `GET /api/patterns`, `GET /api/providers`, `POST /api/playground/run`, `GET /api/traces/{trace_id}`, `POST /api/evaluation/run`, `GET /api/cache/stats`, and `DELETE /api/cache`. Run the deterministic CLI from `backend` with `python -m app.evaluation.run`.
