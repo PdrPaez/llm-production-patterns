@@ -33,3 +33,24 @@ def test_cache_hit_skips_provider():
         return first, second
     first, second = asyncio.run(run())
     assert not first.cache_hit and second.cache_hit and second.attempts == 0
+
+
+def test_retry_then_success_and_fallback_paths():
+    async def run():
+        gateway = Gateway()
+        retry = await gateway.run(PlaygroundRequest(prompt="retry", failure_mode="transient_once", enable_cache=False))
+        fallback = await gateway.run(PlaygroundRequest(prompt="fallback", failure_mode="exhaust_primary", enable_cache=False))
+        return retry, fallback
+
+    retry, fallback = asyncio.run(run())
+    assert retry.retry_count == 1 and retry.attempts == 2 and not retry.fallback_used
+    assert fallback.fallback_used and fallback.provider == "mock_quality"
+
+
+def test_structured_correction_is_bounded():
+    async def run():
+        return await Gateway().run(PlaygroundRequest(prompt="I was charged twice", structured_output=True, simulate_invalid_output=True, enable_cache=False))
+
+    result = asyncio.run(run())
+    assert result.structured_response is not None
+    assert any(span.name == "correction" and span.status == "succeeded" for span in result.trace)

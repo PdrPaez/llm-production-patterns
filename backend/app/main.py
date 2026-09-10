@@ -1,12 +1,19 @@
 import json
 
 from fastapi import FastAPI, HTTPException, Response
+from fastapi.middleware.cors import CORSMiddleware
 
 from .database import get_session, init_db, trace_by_id
 from .gateway import Gateway
 from .schemas import PlaygroundRequest
 
 app = FastAPI(title="LLM Production Patterns", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 gateway = Gateway()
 
 
