@@ -43,6 +43,6 @@ The integration branch is `dev`; releases move to `main` only after the full val
 - [x] LPP-031 Add dedicated frontend execution-mapping tests
 - [x] LPP-032 Add continuous integration
 - [x] LPP-033 Document architecture and visual execution
-- [ ] LPP-034 Complete final reliability, accessibility, and UI hardening
+- [x] LPP-034 Complete final reliability, accessibility, and UI hardening
 
-The unchecked cards are intentionally visible: they are not represented as complete until their dedicated evidence exists.
+All roadmap cards are complete and have dedicated implementation, validation, and release evidence in the repository history.
