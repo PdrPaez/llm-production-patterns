@@ -57,6 +57,14 @@ class PlaygroundRequest(BaseModel):
     client_id: str = "local"
 
 
+class ProviderConfigurationRequest(BaseModel):
+    base_url: str = Field(min_length=1, max_length=500)
+    api_key: str = Field(min_length=1, max_length=500)
+    model: str = Field(min_length=1, max_length=200)
+    fast_model: str | None = Field(default=None, max_length=200)
+    quality_model: str | None = Field(default=None, max_length=200)
+
+
 class TraceSpan(BaseModel):
     name: str
     status: str
