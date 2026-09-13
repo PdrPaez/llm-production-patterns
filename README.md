@@ -1,5 +1,7 @@
 # LLM Production Patterns
 
+[![CI](https://github.com/PdrPaez/llm-production-patterns/actions/workflows/ci.yml/badge.svg)](https://github.com/PdrPaez/llm-production-patterns/actions/workflows/ci.yml)
+
 LLM Production Patterns is a local-first, inspectable reference system for the engineering boundaries that turn a model call into a reliable application workflow.
 
 It makes routing, retries, fallback, structured validation, token budgeting, caching, rate limiting, prompt security, tracing, and deterministic evaluation executable and visible. The default setup runs offline with deterministic mock providers. An OpenAI-compatible transport can be configured from the interface or environment when real model calls are needed.
